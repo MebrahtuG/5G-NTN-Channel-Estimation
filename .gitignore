@@ -1,0 +1,20 @@
+# MATLAB files to ignore
+*.asv
+*.m~
+*.mlx~
+*.mat
+*.fig
+
+# Simulink files
+*.slxc
+*.slprj
+*.mdl.r*
+*.slx.r*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
