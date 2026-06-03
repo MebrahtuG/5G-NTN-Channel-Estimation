@@ -6,6 +6,7 @@
 %  Output: MSE vs SNR comparison
 close all
 clear all
+ close(findall(groot, "Type", "figure"));
 clc
 
 %% =====================================================================
@@ -14,7 +15,7 @@ clc
 trainModel = true;   % Set to true to retrain the CNN from scratch
 rng(42, "twister");
 
-trainingDataSize = 100;
+trainingDataSize = 1000;
 
 %% =====================================================================
 %  SECTION 1: SIMULATION PARAMETERS
@@ -32,7 +33,7 @@ channel = nrTDLChannel;
 channel.Seed = 0;
 channel.DelayProfile = "TDL-A";
 channel.DelaySpread = 3e-7;
-channel.MaximumDopplerShift = 50;
+channel.MaximumDopplerShift = 5000;
 
 % Set the channel response output to "ofdm-response" to obtain the OFDM
 % channel response directly from the channel.
@@ -53,7 +54,7 @@ if trainModel
     fprintf("=== Training Phase ===\n");
     [trainData, trainLabels] = ntnGenerateTrainingData(trainingDataSize, simParams, ntnParams, channel, true);
  
-    batchSize    = 16;
+    batchSize    = 1;
     valSplit     = batchSize;
  
     % Stack real/imag as separate samples along the batch dim
