@@ -44,8 +44,6 @@ channel.NumTransmitAntennas = 1;
 channel.NumReceiveAntennas = 1;
 
 % NTN channel parameters
-ntnParams.DopplerShift    = 0;   % Hz  — LEO satellite Doppler
-ntnParams.PropagationDelay = 2e-6;  % sec — 2 us time offset
 ntnParams.SNRdB_range     = -5:5:25; % SNR sweep (dB)
  
 %% =====================================================================
@@ -165,8 +163,7 @@ for iSNR = 1:nSNR
         H_ls = ntnLSEstimate(rxGrid, dmrsIndices, dmrsSymbols, carrier);
  
         % ---- MMSE estimate ------------------------------------------
-        H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, ...
-                                  carrier, snrLin, ntnParams);
+        H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, snrLin);
  
         % ---- CNN estimate -------------------------------------------
         nnIn = cat(4, real(H_ls), imag(H_ls));  % [72 14 1 2]
@@ -191,10 +188,11 @@ for iSNR = 1:nSNR
  
     fprintf("SNR = %4.1f dB | LS = %.4e | MMSE = %.4e | CNN = %.4e\n", ...
         snrDB, mse_ls(iSNR), mse_mmse(iSNR), mse_cnn(iSNR));
+
+    ntnPlotChannelEstimates(carrier, pdsch, channel, ntnCNN, snrDB);
 end
  
 %% =====================================================================
 %  SECTION 4: PLOT RESULTS
 % ======================================================================
 ntnPlotMSEvsSNR(ntnParams.SNRdB_range, mse_ls, mse_mmse, mse_cnn);
-ntnPlotChannelEstimates(carrier, pdsch, ntnParams, ntnCNN, 15);

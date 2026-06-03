@@ -19,7 +19,6 @@ txGrid = nrResourceGrid(carrier);
 txGrid(dmrsIndices) = dmrsSymbols;
 txWaveform_orig = nrOFDMModulate(carrier, txGrid);
 waveInfo = nrOFDMInfo(carrier);
-fs = waveInfo.SampleRate;
 
 trainData   = zeros(K, L, 2, dataSize);
 trainLabels = zeros(K, L, 2, dataSize);
@@ -28,9 +27,6 @@ for i = 1:dataSize
     % Randomise SNR and small channel perturbations for robustness
     snrDB = randi([min(ntnParams.SNRdB_range) max(ntnParams.SNRdB_range)]);
     snrLin = 10^(snrDB/10);
-    p = ntnParams;
-    p.DopplerShift     = channel.MaximumDopplerShift     + randn*200;
-    p.PropagationDelay = channel.DelaySpread + randn*0.5e-6;
 
     % Apply LOS channel
     [rxWaveform, H_perfect, offset] = channel( ...
