@@ -4,7 +4,10 @@
 %  Channel: Deterministic LOS (AWGN + Doppler + delay)
 %  Estimators: LS (interpolated), MMSE (analytical), CNN
 %  Output: MSE vs SNR comparison
- 
+close all
+clear all
+clc
+
 %% =====================================================================
 %  CONFIGURATION FLAGS
 % ======================================================================
@@ -13,14 +16,33 @@ rng(42, "twister");
 
 trainingDataSize = 100;
 
-
 %% =====================================================================
 %  SECTION 1: SIMULATION PARAMETERS
 % ======================================================================
 simParams = ntnSimParameters();
 carrier   = simParams.Carrier;
 pdsch     = simParams.PDSCH;
- 
+
+%%
+% Create a TDL channel model and set channel parameters. To compare
+% different channel responses of the estimators, you can change these
+% parameters later.
+
+channel = nrTDLChannel;
+channel.Seed = 0;
+channel.DelayProfile = "TDL-A";
+channel.DelaySpread = 3e-7;
+channel.MaximumDopplerShift = 50;
+
+% Set the channel response output to "ofdm-response" to obtain the OFDM
+% channel response directly from the channel.
+channel.ChannelResponseOutput = "ofdm-response";
+waveformInfo = nrOFDMInfo(carrier);
+channel.SampleRate = waveformInfo.SampleRate;
+% This example supports only SISO configuration
+channel.NumTransmitAntennas = 1;
+channel.NumReceiveAntennas = 1;
+
 % NTN channel parameters
 ntnParams.DopplerShift    = 0;   % Hz  — LEO satellite Doppler
 ntnParams.PropagationDelay = 2e-6;  % sec — 2 us time offset
@@ -31,7 +53,7 @@ ntnParams.SNRdB_range     = -5:5:25; % SNR sweep (dB)
 % ======================================================================
 if trainModel
     fprintf("=== Training Phase ===\n");
-    [trainData, trainLabels] = ntnGenerateTrainingData(trainingDataSize, simParams, ntnParams, true);
+    [trainData, trainLabels] = ntnGenerateTrainingData(trainingDataSize, simParams, ntnParams, channel, true);
  
     batchSize    = 16;
     valSplit     = batchSize;
@@ -122,8 +144,8 @@ for iSNR = 1:nSNR
         txWaveform = nrOFDMModulate(carrier, txGrid);
  
         % ---- Apply NTN LOS channel ----------------------------------
-        [rxWaveform, H_perfect, offset] = ntnApplyLOSChannel( ...
-            txWaveform, carrier, ntnParams);
+        [rxWaveform, H_perfect, offset] = channel( ...
+            txWaveform, carrier);
  
         % ---- Add AWGN -----------------------------------------------
         waveInfo = nrOFDMInfo(carrier);
