@@ -26,7 +26,7 @@ trainLabels = zeros(K, L, 2, dataSize);
 
 for i = 1:dataSize
     % Randomise SNR and small channel perturbations for robustness
-    snrDB = randi([0 20]);
+    snrDB = randi([min(ntnParams.SNRdB_range) max(ntnParams.SNRdB_range)]);
     snrLin = 10^(snrDB/10);
     p = ntnParams;
     p.DopplerShift     = ntnParams.DopplerShift     + randn*200;

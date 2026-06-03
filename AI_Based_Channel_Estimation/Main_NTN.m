@@ -10,7 +10,10 @@
 % ======================================================================
 trainModel = true;   % Set to true to retrain the CNN from scratch
 rng(42, "twister");
- 
+
+trainingDataSize = 100;
+
+
 %% =====================================================================
 %  SECTION 1: SIMULATION PARAMETERS
 % ======================================================================
@@ -19,7 +22,7 @@ carrier   = simParams.Carrier;
 pdsch     = simParams.PDSCH;
  
 % NTN channel parameters
-ntnParams.DopplerShift    = 5000;   % Hz  — LEO satellite Doppler
+ntnParams.DopplerShift    = 0;   % Hz  — LEO satellite Doppler
 ntnParams.PropagationDelay = 2e-6;  % sec — 2 us time offset
 ntnParams.SNRdB_range     = -5:5:25; % SNR sweep (dB)
  
@@ -28,7 +31,7 @@ ntnParams.SNRdB_range     = -5:5:25; % SNR sweep (dB)
 % ======================================================================
 if trainModel
     fprintf("=== Training Phase ===\n");
-    [trainData, trainLabels] = ntnGenerateTrainingData(5000, simParams, ntnParams, true);
+    [trainData, trainLabels] = ntnGenerateTrainingData(trainingDataSize, simParams, ntnParams, true);
  
     batchSize    = 16;
     valSplit     = batchSize;
@@ -46,7 +49,7 @@ if trainModel
  
     % CNN architecture — input: [72 x 14 x 1]
     layers = [
-        imageInputLayer([72 14 1], Normalization="none")
+        imageInputLayer([carrier.NSizeGrid*12 14 1], Normalization="none")
         convolution2dLayer([9 9], 16, Padding="same")
         batchNormalizationLayer
         reluLayer
@@ -93,7 +96,7 @@ end
 % ======================================================================
 fprintf("\n=== MSE vs SNR Evaluation ===\n");
 nSNR    = numel(ntnParams.SNRdB_range);
-nTrials = 50;   % Monte Carlo trials per SNR point
+nTrials = 1000;   % Monte Carlo trials per SNR point
  
 mse_ls   = zeros(1, nSNR);
 mse_mmse = zeros(1, nSNR);
@@ -151,9 +154,9 @@ for iSNR = 1:nSNR
         H_cnn = complex(nnOut_re(:,:,1,1), nnOut_im(:,:,1,1));
  
         % ---- Accumulate MSE -----------------------------------------
-        err_ls   = H_perfect(:) - H_ls(:);
-        err_mmse = H_perfect(:) - H_mmse(:);
-        err_cnn  = H_perfect(:) - H_cnn(:);
+        err_ls   = H_perfect(dmrsIndices) - H_ls(dmrsIndices);
+        err_mmse = H_perfect(dmrsIndices) - H_mmse(dmrsIndices);
+        err_cnn  = H_perfect(dmrsIndices) - H_cnn(dmrsIndices);
  
         mseAccum_ls   = mseAccum_ls   + mean(abs(err_ls).^2);
         mseAccum_mmse = mseAccum_mmse + mean(abs(err_mmse).^2);

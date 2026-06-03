@@ -23,7 +23,11 @@ rxWaveform   = [zeros(delaySamples, 1); rxWaveform_dop];
 rxWaveform   = rxWaveform(1:nSamples + delaySamples);  % keep original length + guard
 
 % Timing offset to remove (integer delay)
-offset = delaySamples;
+if (delaySamples < 0)
+    offset = 0;
+else
+    offset = delaySamples;
+end
 
 % --- Perfect channel response (frequency domain) -----------------
 % For a LOS channel: H(k,l) = exp(j*2*pi*fD * t_l) * exp(-j*2*pi*k*tau/Nfft)
