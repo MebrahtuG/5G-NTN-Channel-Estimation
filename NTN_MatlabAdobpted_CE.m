@@ -1,5 +1,4 @@
 %% 5G NTN Channel Estimation using Deep Learning – NTN-TDL-C (LOS, Satellite-to-UE)
-%
 % This script adapts the terrestrial TDL deep learning channel estimation
 % example to a Non-Terrestrial Network (NTN) scenario using:
 %   - NTN-TDL-C delay profile  (LOS, elevation = 30 deg)
@@ -19,7 +18,7 @@ trainModel = true; % true  → train CNN from scratch
 N_sub = 72;
 N_sym = 14;
 
-%  1.  NTN COMMON PARAMETERS  (3GPP TR 38.821 table 6.1.2-4)
+%  1.  NTN COMMON PARAMETERS  
 
 ntnParams.CarrierFrequency  = 2.1e9;          % S-band [Hz]
 ntnParams.ElevationAngle    = 30;           % elevation angle [deg]
@@ -75,7 +74,7 @@ if trainModel
 
     valFrequency = round(size(trainData,4)/batchSize/5);
 
-    % CNN architecture (unchanged from original example)
+    % CNN architecture
     layers = [
         imageInputLayer([N_sub N_sym 1], Normalization="none")
         convolution2dLayer([9 9], 2, Padding="same"); reluLayer
