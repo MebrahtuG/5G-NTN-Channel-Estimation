@@ -23,7 +23,11 @@ rxWaveform   = [zeros(delaySamples, 1); rxWaveform_dop];
 rxWaveform   = rxWaveform(1:nSamples + delaySamples);  % keep original length + guard
 
 % Timing offset to remove (integer delay)
-offset = delaySamples;
+if (delaySamples < 0)
+    offset = 0;
+else
+    offset = delaySamples;
+end
 
 % --- Perfect channel response (frequency domain) -----------------
 % For a LOS channel: H(k,l) = exp(j*2*pi*fD * t_l) * exp(-j*2*pi*k*tau/Nfft)
@@ -34,17 +38,15 @@ cp_lengths = waveInfo.CyclicPrefixLengths;  % CP length per symbol
 
 H_perfect = zeros(K, L);
 t_sym = 0;
-for l = 1:L
-    % Phase due to delay (constant over symbol, linear in subcarrier)
-    k_idx = (0:K-1).';
-    phase_delay  = exp(-1j * 2*pi * k_idx * delaySamples / Nfft);
-
-    % Phase due to Doppler (constant over subcarrier, varies per symbol)
-    phase_doppler = exp(1j * 2*pi * ntnParams.DopplerShift * t_sym / fs);
-
-    H_perfect(:, l) = phase_doppler * phase_delay;
+for l = 1:L-1
+    symb_start = t_sym + cp_lengths(l);
+    symb_end   = symb_start + Nfft;
+    F = ifft(rxWaveform(symb_start+1:symb_end) ./ txWaveform(symb_start+1:symb_end));
+    f_start = (Nfft - K)/2;
+    f_end   = Nfft - f_start;
+    H_perfect(:, l) = F(f_start+1:f_end);
 
     % Advance time to next symbol start
-    t_sym = t_sym + Nfft + cp_lengths(l);
+    t_sym = t_sym + (cp_lengths(l) + Nfft);
 end
 end

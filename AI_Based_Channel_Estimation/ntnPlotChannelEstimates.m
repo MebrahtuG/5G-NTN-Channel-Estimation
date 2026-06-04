@@ -1,4 +1,4 @@
-function ntnPlotChannelEstimates(carrier, pdsch, ntnParams, ntnCNN, snrDB)
+function ntnPlotChannelEstimates(carrier, pdsch, channel, ntnCNN, snrDB)
 % Plot a single-slot comparison of LS, MMSE, CNN, and perfect channel
 
 [dmrsSymbols, dmrsIndices] = ntnGetDMRS(carrier, pdsch);
@@ -8,7 +8,7 @@ txWaveform = nrOFDMModulate(carrier, txGrid);
 waveInfo   = nrOFDMInfo(carrier);
 snrLin     = 10^(snrDB/10);
 
-[rxWaveform, H_perfect, offset] = ntnApplyLOSChannel(txWaveform, carrier, ntnParams);
+[rxWaveform, H_perfect, offset] = channel(txWaveform, carrier);
 N0 = 1/sqrt(double(waveInfo.Nfft)*snrLin);
 rxWaveform = rxWaveform + N0*(randn(size(rxWaveform))+1j*randn(size(rxWaveform)))/sqrt(2);
 rxWaveform = rxWaveform(1+offset:end);
@@ -20,7 +20,7 @@ if size(rxGrid,2) < L
 end
 
 H_ls   = ntnLSEstimate(rxGrid, dmrsIndices, dmrsSymbols, carrier);
-H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, carrier, snrLin, ntnParams);
+H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, snrLin);
 
 nnIn_re = cat(4, real(H_ls), imag(H_ls));
 H_cnn_re = predict(ntnCNN, nnIn_re(:,:,:,1));

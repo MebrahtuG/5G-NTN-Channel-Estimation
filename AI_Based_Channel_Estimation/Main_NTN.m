@@ -4,23 +4,47 @@
 %  Channel: Deterministic LOS (AWGN + Doppler + delay)
 %  Estimators: LS (interpolated), MMSE (analytical), CNN
 %  Output: MSE vs SNR comparison
- 
+close all
+clear all
+ close(findall(groot, "Type", "figure"));
+clc
+
 %% =====================================================================
 %  CONFIGURATION FLAGS
 % ======================================================================
 trainModel = true;   % Set to true to retrain the CNN from scratch
 rng(42, "twister");
- 
+
+trainingDataSize = 1000;
+
 %% =====================================================================
 %  SECTION 1: SIMULATION PARAMETERS
 % ======================================================================
 simParams = ntnSimParameters();
 carrier   = simParams.Carrier;
 pdsch     = simParams.PDSCH;
- 
+
+%%
+% Create a TDL channel model and set channel parameters. To compare
+% different channel responses of the estimators, you can change these
+% parameters later.
+
+channel = nrTDLChannel;
+channel.Seed = 0;
+channel.DelayProfile = "TDL-A";
+channel.DelaySpread = 3e-7;
+channel.MaximumDopplerShift = 5000;
+
+% Set the channel response output to "ofdm-response" to obtain the OFDM
+% channel response directly from the channel.
+channel.ChannelResponseOutput = "ofdm-response";
+waveformInfo = nrOFDMInfo(carrier);
+channel.SampleRate = waveformInfo.SampleRate;
+% This example supports only SISO configuration
+channel.NumTransmitAntennas = 1;
+channel.NumReceiveAntennas = 1;
+
 % NTN channel parameters
-ntnParams.DopplerShift    = 5000;   % Hz  — LEO satellite Doppler
-ntnParams.PropagationDelay = 2e-6;  % sec — 2 us time offset
 ntnParams.SNRdB_range     = -5:5:25; % SNR sweep (dB)
  
 %% =====================================================================
@@ -28,9 +52,9 @@ ntnParams.SNRdB_range     = -5:5:25; % SNR sweep (dB)
 % ======================================================================
 if trainModel
     fprintf("=== Training Phase ===\n");
-    [trainData, trainLabels] = ntnGenerateTrainingData(5000, simParams, ntnParams, true);
+    [trainData, trainLabels] = ntnGenerateTrainingData(trainingDataSize, simParams, ntnParams, channel, true);
  
-    batchSize    = 16;
+    batchSize    = 1;
     valSplit     = batchSize;
  
     % Stack real/imag as separate samples along the batch dim
@@ -46,7 +70,7 @@ if trainModel
  
     % CNN architecture — input: [72 x 14 x 1]
     layers = [
-        imageInputLayer([72 14 1], Normalization="none")
+        imageInputLayer([carrier.NSizeGrid*12 14 1], Normalization="none")
         convolution2dLayer([9 9], 16, Padding="same")
         batchNormalizationLayer
         reluLayer
@@ -93,7 +117,7 @@ end
 % ======================================================================
 fprintf("\n=== MSE vs SNR Evaluation ===\n");
 nSNR    = numel(ntnParams.SNRdB_range);
-nTrials = 50;   % Monte Carlo trials per SNR point
+nTrials = 1000;   % Monte Carlo trials per SNR point
  
 mse_ls   = zeros(1, nSNR);
 mse_mmse = zeros(1, nSNR);
@@ -119,8 +143,8 @@ for iSNR = 1:nSNR
         txWaveform = nrOFDMModulate(carrier, txGrid);
  
         % ---- Apply NTN LOS channel ----------------------------------
-        [rxWaveform, H_perfect, offset] = ntnApplyLOSChannel( ...
-            txWaveform, carrier, ntnParams);
+        [rxWaveform, H_perfect, offset] = channel( ...
+            txWaveform, carrier);
  
         % ---- Add AWGN -----------------------------------------------
         waveInfo = nrOFDMInfo(carrier);
@@ -140,8 +164,7 @@ for iSNR = 1:nSNR
         H_ls = ntnLSEstimate(rxGrid, dmrsIndices, dmrsSymbols, carrier);
  
         % ---- MMSE estimate ------------------------------------------
-        H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, ...
-                                  carrier, snrLin, ntnParams);
+        H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, snrLin);
  
         % ---- CNN estimate -------------------------------------------
         nnIn = cat(4, real(H_ls), imag(H_ls));  % [72 14 1 2]
@@ -151,9 +174,9 @@ for iSNR = 1:nSNR
         H_cnn = complex(nnOut_re(:,:,1,1), nnOut_im(:,:,1,1));
  
         % ---- Accumulate MSE -----------------------------------------
-        err_ls   = H_perfect(:) - H_ls(:);
-        err_mmse = H_perfect(:) - H_mmse(:);
-        err_cnn  = H_perfect(:) - H_cnn(:);
+        err_ls   = H_perfect(dmrsIndices) - H_ls(dmrsIndices);
+        err_mmse = H_perfect(dmrsIndices) - H_mmse(dmrsIndices);
+        err_cnn  = H_perfect(dmrsIndices) - H_cnn(dmrsIndices);
  
         mseAccum_ls   = mseAccum_ls   + mean(abs(err_ls).^2);
         mseAccum_mmse = mseAccum_mmse + mean(abs(err_mmse).^2);
@@ -166,10 +189,11 @@ for iSNR = 1:nSNR
  
     fprintf("SNR = %4.1f dB | LS = %.4e | MMSE = %.4e | CNN = %.4e\n", ...
         snrDB, mse_ls(iSNR), mse_mmse(iSNR), mse_cnn(iSNR));
+
+    ntnPlotChannelEstimates(carrier, pdsch, channel, ntnCNN, snrDB);
 end
  
 %% =====================================================================
 %  SECTION 4: PLOT RESULTS
 % ======================================================================
 ntnPlotMSEvsSNR(ntnParams.SNRdB_range, mse_ls, mse_mmse, mse_cnn);
-ntnPlotChannelEstimates(carrier, pdsch, ntnParams, ntnCNN, 15);

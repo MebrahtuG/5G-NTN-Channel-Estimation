@@ -1,5 +1,5 @@
 function [trainData, trainLabels] = ntnGenerateTrainingData( ...
-    dataSize, simParams, ntnParams, verbose)
+    dataSize, simParams, ntnParams, channel, verbose)
 % Generate training pairs (LS-interpolated estimate, perfect channel)
 % for the NTN LOS scenario.
 % Variation across examples: SNR (0-20 dB), small Doppler jitter (±200 Hz),
@@ -19,22 +19,18 @@ txGrid = nrResourceGrid(carrier);
 txGrid(dmrsIndices) = dmrsSymbols;
 txWaveform_orig = nrOFDMModulate(carrier, txGrid);
 waveInfo = nrOFDMInfo(carrier);
-fs = waveInfo.SampleRate;
 
 trainData   = zeros(K, L, 2, dataSize);
 trainLabels = zeros(K, L, 2, dataSize);
 
 for i = 1:dataSize
     % Randomise SNR and small channel perturbations for robustness
-    snrDB = randi([0 20]);
+    snrDB = randi([min(ntnParams.SNRdB_range) max(ntnParams.SNRdB_range)]);
     snrLin = 10^(snrDB/10);
-    p = ntnParams;
-    p.DopplerShift     = ntnParams.DopplerShift     + randn*200;
-    p.PropagationDelay = ntnParams.PropagationDelay + randn*0.5e-6;
 
     % Apply LOS channel
-    [rxWaveform, H_perfect, offset] = ntnApplyLOSChannel( ...
-        txWaveform_orig, carrier, p);
+    [rxWaveform, H_perfect, offset] = channel( ...
+        txWaveform_orig, carrier);
 
     % Add AWGN
     N0 = 1 / sqrt(double(waveInfo.Nfft) * snrLin);
