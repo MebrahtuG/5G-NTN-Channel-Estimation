@@ -1,14 +1,14 @@
 function H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, snrLin)
+
 % ntnMMSEEstimate - Calculates the MMSE channel estimator.
-%
 % Syntax: H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, snrLin)
-%
+
 % Inputs:
 %   rxGrid      - 2D Matrix of the received OFDM resource grid (Subcarriers x Symbols)
 %   dmrsIndices - Linear indices or 1D vector pointing to DMRS locations in rxGrid
 %   dmrsSymbols - Vector of the known transmitted pilot/DMRS symbols
 %   snrLin      - Linear SNR value (assumed perfectly known)
-%
+
 % Output:
 %   H_mmse      - Estimated channel matrix of the same size as rxGrid
 

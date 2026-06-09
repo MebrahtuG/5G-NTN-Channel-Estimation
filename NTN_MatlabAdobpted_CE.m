@@ -5,7 +5,7 @@
 %   - LEO satellite at 600 km altitude (S-band, 2.1 GHz)
 %   - Static UE  (MaximumDopplerShift = 0 Hz for UE movement)
 %   - Satellite Doppler shift applied via SatelliteDopplerShift property
-%   - Monte Carlo MSE evaluation over SNR = -10:1:20 dB
+%   - Monte Carlo MSE evaluation over SNR = -10:1:20 dB 
 
 
 clear; clc; close all;
@@ -19,7 +19,7 @@ N_sub = 72;
 N_sym = 14;
 
 %  1.  NTN COMMON PARAMETERS  
-
+ntnParams = struct;
 ntnParams.CarrierFrequency  = 2.1e9;          % S-band [Hz]
 ntnParams.ElevationAngle    = 30;           % elevation angle [deg]
 ntnParams.SatelliteAltitude = 600000;       % LEO altitude [m]
@@ -27,7 +27,7 @@ ntnParams.MobileAltitude    = 0;            % UE on ground [m]
 ntnParams.MobileSpeed       = 0;            % STATIC UE [m/s]
 ntnParams.DelayProfile      = "NTN-TDL-C"; % LOS NTN profile
 ntnParams.DelaySpread       = 30e-9;        % 30 ns [s]
-% ntnParams.MIMOCorrelation   = "Low";
+ntnParams.MIMOCorrelation   = "None";
 % ntnParams.Polarization      = "Co-Polar";
 ntnParams.NumTxAntennas     = 1;            % SISO downlink
 ntnParams.NumRxAntennas     = 1;
@@ -305,7 +305,7 @@ function [trainData, trainLabels] = hGenerateNTNTrainingData( ...
         dmrsRx   = rxGrid(dmrsIndices);
         dmrsEsts = dmrsRx .* conj(dmrsSymbols);
         f    = scatteredInterpolant(dmrsSubs(:,2), dmrsSubs(:,1), dmrsEsts);
-        hest = f(k_h, l_h);
+        hest = f(l_h, k_h);
 
         trainData(:,:,:,i)   = cat(3, real(hest),        imag(hest));
         trainLabels(:,:,:,i) = cat(3, real(ofdmChanResp), imag(ofdmChanResp));

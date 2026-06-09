@@ -1,9 +1,10 @@
 function [trainData, trainLabels] = ntnGenerateTrainingData( ...
     dataSize, simParams, ntnParams, channel, verbose)
+
 % Generate training pairs (LS-interpolated estimate, perfect channel)
 % for the NTN LOS scenario.
-% Variation across examples: SNR (0-20 dB), small Doppler jitter (±200 Hz),
-% small delay jitter (±0.5 us) to improve generalisation.
+% Variation across examples: SNR (-10:5:20 dB), small Doppler jitter (±200 Hz),
+% small delay jitter (±0.5 us) to improve generalization.
 
 if verbose
     fprintf("Generating %d training examples...\n", dataSize);
@@ -24,7 +25,7 @@ trainData   = zeros(K, L, 2, dataSize);
 trainLabels = zeros(K, L, 2, dataSize);
 
 for i = 1:dataSize
-    % Randomise SNR and small channel perturbations for robustness
+    % Randomize SNR and small channel perturbations for robustness
     snrDB = randi([min(ntnParams.SNRdB_range) max(ntnParams.SNRdB_range)]);
     snrLin = 10^(snrDB/10);
 

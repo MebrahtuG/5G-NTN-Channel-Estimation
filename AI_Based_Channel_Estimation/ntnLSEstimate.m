@@ -1,4 +1,5 @@
 function H_ls = ntnLSEstimate(rxGrid, dmrsIndices, dmrsSymbols, carrier)
+
 % Least-Squares channel estimation:
 %   1. Extract received pilots and divide by known pilots → LS pilot estimates
 %   2. Scattered interpolation over the full resource grid

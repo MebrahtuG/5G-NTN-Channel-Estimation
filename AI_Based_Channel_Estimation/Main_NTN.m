@@ -1,38 +1,35 @@
-%% 5G NTN Deep Learning Channel Estimation
+%  5G NTN Deep Learning Channel Estimation
 %  Scenario: Satellite-to-UE (NTN), PDSCH, SISO
 %  Resource grid: 72 subcarriers (6 RBs x 12) x 14 OFDM symbols
 %  Channel: Deterministic LOS (AWGN + Doppler + delay)
 %  Estimators: LS (interpolated), MMSE (analytical), CNN
 %  Output: MSE vs SNR comparison
 close all
-clear all
- close(findall(groot, "Type", "figure"));
+clear 
+close(findall(groot, "Type", "figure"));
 clc
 
-%% =====================================================================
+
 %  CONFIGURATION FLAGS
-% ======================================================================
+
 trainModel = true;   % Set to true to retrain the CNN from scratch
 rng(42, "twister");
 
 trainingDataSize = 1000;
 
-%% =====================================================================
+
 %  SECTION 1: SIMULATION PARAMETERS
-% ======================================================================
+
 simParams = ntnSimParameters();
 carrier   = simParams.Carrier;
 pdsch     = simParams.PDSCH;
 
-%%
-% Create a TDL channel model and set channel parameters. To compare
-% different channel responses of the estimators, you can change these
-% parameters later.
+% Create a TDL channel model and set channel parameters. 
 
 channel = nrTDLChannel;
 channel.Seed = 0;
-channel.DelayProfile = "TDL-A";
-channel.DelaySpread = 3e-7;
+channel.DelayProfile = "NTN-TDL-C";
+channel.DelaySpread = 30e-9;
 channel.MaximumDopplerShift = 5000;
 
 % Set the channel response output to "ofdm-response" to obtain the OFDM
@@ -47,14 +44,14 @@ channel.NumReceiveAntennas = 1;
 % NTN channel parameters
 ntnParams.SNRdB_range     = -5:5:25; % SNR sweep (dB)
  
-%% =====================================================================
+
 %  SECTION 2: TRAIN OR LOAD THE CNN
-% ======================================================================
+
 if trainModel
     fprintf("=== Training Phase ===\n");
     [trainData, trainLabels] = ntnGenerateTrainingData(trainingDataSize, simParams, ntnParams, channel, true);
  
-    batchSize    = 1;
+    batchSize    = 8;
     valSplit     = batchSize;
  
     % Stack real/imag as separate samples along the batch dim
@@ -104,6 +101,7 @@ if trainModel
     fprintf("Model saved to trainedNTNCNN.mat\n");
 else
     % Load pretrained network
+
     if isfile("trainedNTNCNN.mat")
         load("trainedNTNCNN.mat", "ntnCNN");
         fprintf("Pretrained NTN CNN loaded.\n");
@@ -112,9 +110,9 @@ else
     end
 end
  
-%% =====================================================================
+
 %  SECTION 3: MSE vs SNR EVALUATION
-% ======================================================================
+
 fprintf("\n=== MSE vs SNR Evaluation ===\n");
 nSNR    = numel(ntnParams.SNRdB_range);
 nTrials = 1000;   % Monte Carlo trials per SNR point
@@ -139,20 +137,20 @@ for iSNR = 1:nSNR
     mseAccum_cnn  = 0;
  
     for iTrial = 1:nTrials
-        % ---- Transmit -----------------------------------------------
+        % Transmit 
         txWaveform = nrOFDMModulate(carrier, txGrid);
  
-        % ---- Apply NTN LOS channel ----------------------------------
+        % Apply NTN LOS channel 
         [rxWaveform, H_perfect, offset] = channel( ...
             txWaveform, carrier);
  
-        % ---- Add AWGN -----------------------------------------------
+        % Add AWGN 
         waveInfo = nrOFDMInfo(carrier);
         N0 = 1 / sqrt(double(waveInfo.Nfft) * snrLin);
         noise = N0 * (randn(size(rxWaveform)) + 1j*randn(size(rxWaveform))) / sqrt(2);
         rxWaveform = rxWaveform + noise;
  
-        % ---- Timing synchronisation & demodulation ------------------
+        % Timing synchronization & demodulation
         rxWaveform = rxWaveform(1+offset:end, :);
         rxGrid = nrOFDMDemodulate(carrier, rxWaveform);
         [K, L, ~] = size(rxGrid);
@@ -160,20 +158,20 @@ for iSNR = 1:nSNR
             rxGrid = cat(2, rxGrid, zeros(K, carrier.SymbolsPerSlot-L));
         end
  
-        % ---- LS estimate (pilot extraction + linear interpolation) --
+        % LS estimate (pilot extraction + linear interpolation) 
         H_ls = ntnLSEstimate(rxGrid, dmrsIndices, dmrsSymbols, carrier);
  
-        % ---- MMSE estimate ------------------------------------------
+        % MMSE estimate 
         H_mmse = ntnMMSEEstimate(rxGrid, dmrsIndices, dmrsSymbols, snrLin);
  
-        % ---- CNN estimate -------------------------------------------
+        % CNN estimate 
         nnIn = cat(4, real(H_ls), imag(H_ls));  % [72 14 1 2]
         % Predict real and imaginary parts separately
         nnOut_re = predict(ntnCNN, nnIn(:,:,:,1));
         nnOut_im = predict(ntnCNN, nnIn(:,:,:,2));
         H_cnn = complex(nnOut_re(:,:,1,1), nnOut_im(:,:,1,1));
  
-        % ---- Accumulate MSE -----------------------------------------
+        % Accumulate MSE 
         err_ls   = H_perfect(dmrsIndices) - H_ls(dmrsIndices);
         err_mmse = H_perfect(dmrsIndices) - H_mmse(dmrsIndices);
         err_cnn  = H_perfect(dmrsIndices) - H_cnn(dmrsIndices);
@@ -193,7 +191,7 @@ for iSNR = 1:nSNR
     ntnPlotChannelEstimates(carrier, pdsch, channel, ntnCNN, snrDB);
 end
  
-%% =====================================================================
+
 %  SECTION 4: PLOT RESULTS
-% ======================================================================
+
 ntnPlotMSEvsSNR(ntnParams.SNRdB_range, mse_ls, mse_mmse, mse_cnn);
